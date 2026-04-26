@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Физика 7-9: Мастер Формул</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 { color: var(--primary); margin-bottom: 0.5rem; }
+        .stats { display: flex; justify-content: space-between; margin-bottom: 1rem; font-weight: bold; }
+        
+        #timer { color: var(--danger); font-size: 1.2rem; }
+
+        .question-box {
+            font-size: 1.5rem;
+            margin: 2rem 0;
+            padding: 1rem;
+            border: 2px dashed var(--secondary);
+            border-radius: 0.5rem;
+        }
+
+        .formula-display { font-family: "Cambria Math", serif; font-style: italic; font-size: 2rem; }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            background: var(--primary);
+            color: white;
+        }
+
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        button.secondary { background: var(--secondary); }
+        
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: none;
+        }
+
+        .error { background: #fee2e2; color: var(--danger); border: 1px solid var(--danger); }
+        .correct { background: #dcfce7; color: var(--success); border: 1px solid var(--success); }
+
+        .hidden { display: none; }
+        
+        #input-answer {
+            padding: 10px;
+            font-size: 1.2rem;
+            width: 80%;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Physics Quiz 7-9</h1>
+    
+    <div id="menu">
+        <p>Выбери режим тренировки:</p>
+        <button onclick="startGame('practice')">Практика (без спешки)</button>
+        <button onclick="startGame('speed')" style="background: #f59e0b;">Спринт (60 секунд)</button>
+    </div>
+
+    <div id="game" class="hidden">
+        <div class="stats">
+            <span>Счет: <span id="score">0</span></span>
+            <span id="timer-container" class="hidden">Время: <span id="timer">60</span></span>
+        </div>
+
+        <div id="question-text">Что это за величина?</div>
+        <div class="question-box">
+            <div id="formula-area" class="formula-display"></div>
+        </div>
+
+        <div id="options" class="options-grid"></div>
+        
+        <div id="input-zone" class="hidden">
+            <input type="text" id="input-answer" placeholder="Введите символ...">
+            <br>
+            <button onclick="checkInputAnswer()">Проверить</button>
+        </div>
+
+        <div id="feedback" class="feedback"></div>
+        
+        <button id="next-btn" class="hidden" onclick="nextQuestion()" style="margin-top:1rem; width:100%;">Дальше</button>
+    </div>
+
+    <div id="results" class="hidden">
+        <h2>Игра окончена!</h2>
+        <p style="font-size: 1.5rem;">Ваш результат: <span id="final-score">0</span></p>
+        <button onclick="location.reload()">В меню</button>
+    </div>
+</div>
+
+<script>
+    // База данных вопросов
+    const database = [
+        { 
+            type: 'unit', 
+            q: 'В чем измеряется сила (F)?', 
+            formula: 'F', 
+            options: ['Ньютоны (Н)', 'Джоули (Дж)', 'Паскали (Па)', 'Ватты (Вт)'], 
+            correct: 'Ньютоны (Н)',
+            info: 'Сила измеряется в Ньютонах в честь Исаака Ньютона.'
+        },
+        { 
+            type: 'fill', 
+            q: 'Дополни формулу силы тяжести:', 
+            formula: 'Fт = m · ...', 
+            correct: 'g',
+            info: 'F = mg, где g — ускорение свободного падения (~9.8 м/с²).'
+        },
+        { 
+            type: 'unit', 
+            q: 'В чем измеряется давление (p)?', 
+            formula: 'p = F / S', 
+            options: ['Паскали (Па)', 'Ньютоны (Н)', 'Метры (м)', 'Кг'], 
+            correct: 'Паскали (Па)',
+            info: 'Давление — это сила, действующая на единицу площади.'
+        },
+        { 
+            type: 'fill', 
+            q: 'Дополни формулу плотности:', 
+            formula: 'ρ = m / ...', 
+            correct: 'V',
+            info: 'Плотность (ро) равна массе, деленной на объем (V).'
+        },
+        { 
+            type: 'unit', 
+            q: 'В чем измеряется работа (A)?', 
+            formula: 'A = F · s', 
+            options: ['Джоули (Дж)', 'Ватты (Вт)', 'Ньютоны (Н)', 'Секунды (с)'], 
+            correct: 'Джоули (Дж)',
+            info: 'Работа и энергия измеряются в Джоулях.'
+        },
+        { 
+            type: 'fill', 
+            q: 'Закон Гука: Сила упругости', 
+            formula: 'Fупр = k · ...', 
+            correct: 'Δx',
+            info: 'F = kΔx, где k — жесткость, а Δx — удлинение.'
+        }
+    ];
+
+    let score = 0;
+    let currentQuestion = null;
+    let gameMode = 'practice';
+    let timeLeft = 60;
+    let timerInterval;
+
+    function startGame(mode) {
+        gameMode = mode;
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('game').classList.remove('hidden');
+        
+        if (mode === 'speed') {
+            document.getElementById('timer-container').classList.remove('hidden');
+            startTimer();
+        }
+        
+        nextQuestion();
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            document.getElementById('timer').innerText = timeLeft;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
+    }
+
+    function nextQuestion() {
+        resetUI();
+        currentQuestion = database[Math.floor(Math.random() * database.length)];
+        
+        document.getElementById('question-text').innerText = currentQuestion.q;
+        document.getElementById('formula-area').innerText = currentQuestion.formula;
+
+        if (currentQuestion.type === 'unit') {
+            showOptions();
+        } else {
+            showInput();
+        }
+    }
+
+    function showOptions() {
+        const container = document.getElementById('options');
+        container.classList.remove('hidden');
+        container.innerHTML = '';
+        
+        currentQuestion.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'secondary';
+            btn.innerText = opt;
+            btn.onclick = () => checkOption(opt);
+            container.appendChild(btn);
+        });
+    }
+
+    function showInput() {
+        document.getElementById('input-zone').classList.remove('hidden');
+        document.getElementById('input-answer').value = '';
+        document.getElementById('input-answer').focus();
+    }
+
+    function checkOption(choice) {
+        if (choice === currentQuestion.correct) {
+            handleSuccess();
+        } else {
+            handleError();
+        }
+    }
+
+    function checkInputAnswer() {
+        const val = document.getElementById('input-answer').value.trim();
+        if (val.toLowerCase() === currentQuestion.correct.toLowerCase()) {
+            handleSuccess();
+        } else {
+            handleError();
+        }
+    }
+
+    function handleSuccess() {
+        score++;
+        document.getElementById('score').innerText = score;
+        const fb = document.getElementById('feedback');
+        fb.innerText = "Правильно!";
+        fb.className = "feedback correct";
+        fb.style.display = "block";
+        
+        if (gameMode === 'practice') {
+            document.getElementById('next-btn').classList.remove('hidden');
+        } else {
+            setTimeout(nextQuestion, 500); // В режиме скорости переключаем быстрее
+        }
+    }
+
+    function handleError() {
+        const fb = document.getElementById('feedback');
+        fb.innerHTML = `<strong>Ошибка!</strong> Правильный ответ: ${currentQuestion.correct}. <br><small>${currentQuestion.info}</small>`;
+        fb.className = "feedback error";
+        fb.style.display = "block";
+        
+        if (gameMode === 'practice') {
+            document.getElementById('next-btn').classList.remove('hidden');
+        } else {
+            // В режиме скорости штраф по времени или просто задержка
+            setTimeout(nextQuestion, 2000); 
+        }
+    }
+
+    function resetUI() {
+        document.getElementById('options').classList.add('hidden');
+        document.getElementById('input-zone').classList.add('hidden');
+        document.getElementById('feedback').style.display = 'none';
+        document.getElementById('next-btn').classList.add('hidden');
+    }
+
+    function endGame() {
+        clearInterval(timerInterval);
+        document.getElementById('game').classList.add('hidden');
+        document.getElementById('results').classList.remove('hidden');
+        document.getElementById('final-score').innerText = score;
+    }
+</script>
+
+</body>
+</html>
